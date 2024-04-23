@@ -20,5 +20,5 @@ jobs:
       uses: actions/upload-artifact@v4.3.3
       with:
         name: latest_keep_root
-        path: https://github.com/ankitvrsharma/Keep-Root/blob/76ec9bc1b1e606dccb59d8dca6569dfba320d5bf/Keep_Root.sh
+        path: Keep_Root.sh
         
