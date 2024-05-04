@@ -54,7 +54,7 @@ read -p "Selection: " user_choice
 
 case $user_choice in
   1) download "$MAGISK_REPO";;
-  2) download "$APATCH_REPO";;
+  2) echo "APatch Method is not yet implemented, until then use other methods or use APatch yourself."; $user_choice #download "$APATCH_REPO";;
   3) read -p "Enter the full GitHub repository path (e.g., 'username/repo'): " repo
      download "$repo";;
   4) echo -e "${Y}Skipping...${NC}"; rm -rf "$tmp_dir"; exit 0;;
