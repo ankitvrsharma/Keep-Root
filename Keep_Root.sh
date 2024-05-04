@@ -96,6 +96,6 @@ perform_root() {
 
 perform_root
 
-#rm -rf "$tmp_dir"
+rm -rf "$tmp_dir"
 cp "$log_file" "/storage/emulated/0/"
 echo -e "${G}Successful! Your root is retained you can reboot your device now.${NC}"
