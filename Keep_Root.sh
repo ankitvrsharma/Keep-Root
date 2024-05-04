@@ -1,129 +1,101 @@
 #!/bin/bash
-
+set -euo pipefail
 Y="\033[1;33m"
 G="\033[1;32m"
 R="\033[1;31m"
 NC="\033[0m"
-
-MAGISK_REPO="topjohnwu/Magisk"
 APATCH_REPO="bmax121/APatch"
-
+MAGISK_REPO="topjohnwu/Magisk"
 tmp_dir="$HOME/tmp"
+log_file="$tmp_dir/keep_root_logs.txt"
 mkdir -p "$tmp_dir" "$tmp_dir/temp"
-chmod 755 "$tmp_dir/temp" || { echo -e "${R}Failed to set permissions for tmp directory.${NC}"; exit 1; }
+chmod -R 755 "$tmp_dir/temp"
+
+echo -e "${G}Starting Root process...${NC}"
 
 download() {
   local repo=$1
   local url="https://api.github.com/repos/$repo/releases/latest"
   echo -e "${G}Downloading the latest release from $repo...${NC}"
-  
   local download_url=$(curl -s "$url" | grep -oP '"browser_download_url": "\K(.*?)(?=")')
-  if [ -z "$download_url" ]; then
-    echo -e "${R}Download URL not found.${NC}"
-    rm -rf $tmp_dir
-    exit 1
-  fi
-  
-  curl -L -o "$tmp_dir/temp/latest.zip" "$download_url" || {
-    echo -e "${R}Failed to download the file.${NC}"
-    rm -rf $tmp_dir
-    exit 1
-  }
+  [ -z "$download_url" ] || { echo \"Failed to create download url, please provide correct repository address.\"; exit 1; }
+  curl -L -o "$tmp_dir/temp/latest.zip" "$download_url"
+  echo -e "Successful"
 }
 
 setup() {
   echo -e "${G}Setting up environment...${NC}"
-  cd "$tmp_dir/temp" || exit 1
-  unzip -q latest.zip || { echo -e "${R}Failed to unzip the file.${NC}"; rm -rf $tmp_dir; exit 1; }
+  cd "$tmp_dir/temp"
+  unzip -q latest.zip
   cd $tmp_dir/temp/lib/arm64-v8a
   for f in *.so; do mv -- "$f" "${f#lib}"; done
   find -type f -name '*.so' | while read f; do mv "$f" "${f%.so}"; done
-  cd $home
+  cd $HOME
   mv $tmp_dir/temp/lib/arm64-v8a/* $tmp_dir
-  cp -r $tmp_dir/temp/assets/* $tmp_dir
-  sed -i '72,73s/false/true/g' "$tmp_dir/boot_patch.sh"
+  cp -r $tmp_dir/temp/assets/* $tmp_dir || { echo \"Failed to setup environment.\"; exit 1; }
+  echo -e "Successful"
 }
 
 echo -e "${Y}Enter the number corresponding to the root method you want to use:${NC}"
-echo -e "${G}1. Magisk${NC}"
-echo -e "${G}2. APatch${NC}"
-echo -e "${G}3. Other (Type GitHub Repo name i.e. magisk is topjohnwu/Magisk)${NC}"
-echo -e "${G}4. Skip for now${NC}"
+echo -e "${G}1. OTA Update with Magisk${NC}"
+echo -e "${G}2. Update Magisk${NC}"
+echo -e "${G}3. OTA Update with APatch${NC}"
+echo -e "${G}4. Update APatch${NC}"
+echo -e "${G}5. OTA Update with Other Magisk Variants(Type GitHub Repo name i.e. magisk is topjohnwu/Magisk)${NC}"
+echo -e "${G}6. Update Other Magisk Variants${NC}"
+echo -e "${G}7. Skip for now${NC}"
 
 read -p "Selection: " user_choice
 
 case $user_choice in
-  1) download "$MAGISK_REPO";;
-  2) echo "APatch Method is not yet implemented, until then use other methods or use APatch yourself."; $user_choice #download "$APATCH_REPO";;
-  3) read -p "Enter the full GitHub repository path (e.g., 'username/repo'): " repo
+  1|2) download "$MAGISK_REPO";;
+  3|4) download "$APATCH_REPO";;
+  5|6) read -p "Enter the full GitHub repository path (e.g., 'username/repo'): " repo
      download "$repo";;
-  4) echo -e "${Y}Skipping...${NC}"; rm -rf "$tmp_dir"; exit 0;;
-  *) echo -e "${R}Invalid option. Exiting...${NC}"; rm -rf $tmp_dir; exit 1;;
+  7) echo -e "${Y}Skipping root process and clearing temporary files....${NC}"; rm -rf "$tmp_dir"; exit 0;;
+  *) echo -e "${R}Invalid option. Please choose correct option...${NC}" ;;
 esac
 
 setup
 
-su -c '
-# Define colors for echo
-Y="\033[1;33m"
-G="\033[1;32m"
-R="\033[1;31m"
-NC="\033[0m" # No Color
-tmp_dir="/data/data/com.termux/files/home/tmp"
-chmod 755 -R "$tmp_dir"
+if [ "$user_choice" = "1" ] || [ "$user_choice" = "2" ] || [ "$user_choice" = "5" ] || [ "$user_choice" = "6" ]; then
+    sed -i 's/KEEPFORCEENCRYPT=false/KEEPFORCEENCRYPT=true/g; s/KEEPVERITY=false/KEEPVERITY=true/g' "$tmp_dir/boot_patch.sh"
+fi
 
-cleanup() {
-  echo -e "${Y}Cleaning up temporary files...${NC}"
-  rm -rf "$tmp_dir"
-  echo -e "${G}Cleanup complete.${NC}"
+perform_root() {
+  local superkey=""
+  
+  [ "$user_choice" = "3" ] || [ "$user_choice" = "4" ] && {
+    echo -e "${Y}Enter your superkey for rooting with APatch:${NC}"
+    read -p "Superkey: " superkey
+  }
+
+  su -c "
+    local active_slot=\$(getprop ro.boot.slot_suffix)
+    local inactive_slot=\$( [ \"\$active_slot\" = \"_a\" ] && echo \"_b\" || echo \"_a\" )
+    local boot_slot=\$( [ \"$user_choice\" = \"1\" ] || [ \"$user_choice\" = \"3\" ] || [ \"$user_choice\" = \"5\" ] && echo \"\$inactive_slot\" || echo \"\$active_slot\" )
+    local boot=\$(find /dev/block -type l -name \"boot\$boot_slot\" -print | head -n 1)
+    
+    echo \"Extracting boot image from \$boot...\"
+    if [ -n \"\$boot\" ]; then
+      dd if=\"\$boot\" of=\"$tmp_dir/boot.img\" || { echo \"Failed to extract boot image.\"; exit 1; }
+    fi
+
+    cd $tmp_dir && chmod -R 755 $tmp_dir
+    echo -e \"${G}Patching boot image...${NC}\"
+    if [ \"$user_choice\" = \"3\" ] || [ \"$user_choice\" = \"4\" ]; then
+      \"$tmp_dir/boot_patch.sh\" \"$superkey\" \"$tmp_dir/boot.img\" || { echo \"Failed to patch boot image using APatch.\"; exit 1; }
+    else
+      \"$tmp_dir/boot_patch.sh\" \"$tmp_dir/boot.img\" || { echo \"Failed to patch boot image using Magisk.\"; exit 1; }
+    fi
+
+    echo \"${G}Flashing patched boot image to \$boot...${NC}\"
+    dd if=\"$tmp_dir/new-boot.img\" of=\"\$boot\" || { echo \"Failed to flash patched boot image.\"; exit 1; }
+  "
 }
 
-check_error() {
-  if [ $? -ne 0 ]; then
-    echo -e "${R}An error occurred. Exiting...${NC}"
-    cleanup
-    exit 1
-  fi
-}
+perform_root
 
-root() {
-  local choice=$1
-  local active_slot=$(getprop ro.boot.slot_suffix)
-  local inactive_slot=$([[ "$active_slot" == "_a" ]] && echo "_b" || echo "_a")
-  local boot=$(find /dev/block -type l -name "boot$inactive_slot" -print | head -n 1)
-  
-  echo "Extracting boot image from $boot..."
-  if [ -n "$boot" ]; then
-    dd if="$boot" of="$tmp_dir/boot.img" || return 1
-  else
-    echo "Boot partition not found."
-    return 1
-  fi
-  
-  echo -e "${G}Patching boot image...${NC}"
-  "$tmp_dir/boot_patch.sh" "$tmp_dir/boot.img" || return 1
-  
-  echo "${G}Flashing patched boot image to $boot...${NC}"
-  dd if="$tmp_dir/new-boot.img" of="$boot" || return 1
-}
-
-echo -e "${Y}Select what do you want to do:${NC}"
-options=("OTA Update" "Update root" "Skip for now")
-select opt in "${options[@]}"; do
-  case $REPLY in
-    1|2)
-      root $REPLY 
-      check_error
-      break
-      ;;
-    3)
-      echo -e "${Y}Rooting aborted. You can try later.${NC}"
-      cleanup
-      exit 0
-      ;;
-    *)
-      echo -e "${R}Invalid option. Try again.${NC}"
-      ;;
-  esac
-done
-'
+#rm -rf "$tmp_dir"
+cp "$log_file" "/storage/emulated/0/"
+echo -e "${G}Successful! Your root is retained you can reboot your device now.${NC}"
