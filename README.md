@@ -1,31 +1,39 @@
-# Keep-Root
-Specifically for Realme 11 Pro Series phones but theoretically can work with any A/B partition devices.
-It can retain root in the following conditions:-
-1. Updating OTA
-2. Flashing custom recoveries ie TWRP
-3. Update Magisk to newer version.
-4. Changing root system from magisk to other magisk variants, to APatch or vice versa.
+markdown
+# Keep Root
 
-It's only need termux.
+## Introduction
+Keep Root is a specialized script designed for Realme 11 Pro Series phones, though it is theoretically compatible with any A/B partition devices. It enables users to retain root access under various scenarios, including OTA updates, flashing custom recoveries, and updating or changing root systems. It supports Magisk, APatch or any other magisk variants.
 
-• It's noob friendly.
+## Prerequisites
+- A rooted device with A/B partition layout
+- Termux application installed
+- Disabled automatic system updates in developer options
 
-• No need to download region specific firmware. 
+# Features
+- **Automated Download**: Fetch the latest releases of Magisk or APatch directly from their official GitHub repositories.
+- **Root Methods Selection**: Choose from various root methods including OTA updates with Magisk, APatch, or other Magisk variants.
+- **Boot Image Handling**: Extract and flash either the active or inactive boot image automatically.
 
-• No PC needed.
-
-• In future will keep root after TWRP flashing.
-
-Prerequisites:-
-1. Rooted phone.
-2. Automatic System Updates off in developer options.
-3. For OTA root option:- First download the OTA and reboot your device, then execute command.
+## Installation
+Execute the following command in Termux to use Keep Root:
 ```
-curl -fsSL https://raw.githubusercontent.com/ankitvrsharma/Keep-Root/main/Keep_Root.sh -o Keep_Root.sh && chmod +x Keep_Root.sh && ./Keep_Root.sh
+bash curl -fsSL https://raw.githubusercontent.com/ankitvrsharma/Keep-Root/main/Keep_Root.sh -o Keep_Root.sh && chmod +x Keep_Root.sh && ./Keep_Root.sh
 ```
+Or you can download script from release section and execute it.
+## Usage
+Execute Keep Root and choose a rooting method when prompted. For APatch, input your superkey when requested.
 
-Instructions for use:-
+## Future Enhancements
+- [ ] Planned support for maintaining root after TWRP flashing.
+- [ ] Add support for additional devices beyond the Realme 11 Pro Series.
+- [ ] Implement an automated backup feature before performing root operations.
+- [ ] Integrate with more custom recovery tools.
 
-Copy and paste the code in Termux and follow on screen prompt simple.
+## Disclaimer
+Keep Root is provided "as is" without any warranty. The author is not responsible for any damage or data loss incurred through its use.
 
-By - @ankitvrsharma
+## Contributions
+Contributions are welcome. Please submit pull requests or issues via GitHub.
+
+## License
+Keep Root is licensed under the GNU General Public License (GPL).
