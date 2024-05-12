@@ -17,10 +17,13 @@ download() {
   local repo=$1
   local url="https://api.github.com/repos/$repo/releases/latest"
   echo -e "${G}Downloading the latest release from $repo...${NC}"
-  local download_url=$(curl -s "$url" | grep -oP '"browser_download_url": "\K(.*?)(?=")')
-  [ -z "$download_url" ] || { echo \"Failed to create download url, please provide correct repository address.\"; exit 1; }
+  local download_url=$(curl -s "$url" | grep -oP '(?<="browser_download_url": ")[^"]*')
+  if [ -z "$download_url" ]; then
+    echo -e "${R}Failed to create download url, please provide correct repository address.${NC}"
+    exit 1
+  fi
   curl -L -o "$tmp_dir/temp/latest.zip" "$download_url"
-  echo -e "Successful"
+  echo -e "${G}Download successful${NC}"
 }
 
 setup() {
